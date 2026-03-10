@@ -1,0 +1,568 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>医学单选题刷题系统</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: "Microsoft YaHei", sans-serif;
+        }
+        body {
+            background-color: #f5f7fa;
+            padding: 20px;
+        }
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            padding: 30px;
+        }
+        .header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+            padding-bottom: 10px;
+            border-bottom: 1px solid #eee;
+        }
+        .header button {
+            padding: 8px 15px;
+            background: #409eff;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+        }
+        .header button:hover {
+            background: #337ecc;
+        }
+        .question-card {
+            margin-bottom: 25px;
+        }
+        .question-title {
+            font-size: 18px;
+            font-weight: bold;
+            margin-bottom: 15px;
+            color: #333;
+        }
+        .option-list {
+            list-style: none;
+            margin-bottom: 15px;
+        }
+        .option-item {
+            padding: 10px 15px;
+            margin-bottom: 8px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        .option-item:hover {
+            background-color: #f0f7ff;
+            border-color: #409eff;
+        }
+        .option-item.correct {
+            background-color: #f0f9ff;
+            border-color: #52c41a;
+            color: #52c41a;
+            font-weight: bold;
+        }
+        .option-item.wrong {
+            background-color: #fff2f0;
+            border-color: #f5222d;
+            color: #f5222d;
+        }
+        .analysis {
+            padding: 15px;
+            background-color: #fafafa;
+            border-radius: 5px;
+            margin-top: 10px;
+            display: none;
+            color: #666;
+            line-height: 1.6;
+        }
+        .control-btn {
+            display: flex;
+            gap: 10px;
+            margin-top: 15px;
+        }
+        .control-btn button {
+            padding: 8px 15px;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+        }
+        .show-analysis {
+            background: #f0f7ff;
+            color: #409eff;
+        }
+        .next-question {
+            background: #409eff;
+            color: white;
+        }
+        .wrong-list {
+            margin-top: 30px;
+            display: none;
+        }
+        .wrong-list h3 {
+            color: #f5222d;
+            margin-bottom: 15px;
+            padding-bottom: 10px;
+            border-bottom: 1px solid #eee;
+        }
+        .result {
+            margin-top: 20px;
+            padding: 15px;
+            background: #f9f9f9;
+            border-radius: 5px;
+            display: none;
+        }
+        .result p {
+            margin-bottom: 8px;
+            color: #333;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h2>医学单选题刷题系统</h2>
+            <div>
+                <button id="show-wrong-btn">查看错题本</button>
+                <button id="reset-wrong-btn">清空错题</button>
+            </div>
+        </div>
+
+        <!-- 题目区域 -->
+        <div id="question-area"></div>
+
+        <!-- 结果区域 -->
+        <div class="result" id="result-area"></div>
+
+        <!-- 错题本区域 -->
+        <div class="wrong-list" id="wrong-list-area">
+            <h3>我的错题本</h3>
+            <div id="wrong-questions"></div>
+        </div>
+    </div>
+
+    <script>
+        // 题库数据（包含所有题目+解析）
+        const questionBank = [
+            {
+                id: 1,
+                title: "下列哪种活动属于条件反射：",
+                options: [
+                    "A. 食物进入口腔后引起胃腺分泌",
+                    "B. 寒冷环境下皮肤血管收缩",
+                    "C. 看到酸梅时引起唾液分泌",
+                    "D. 大量饮水后尿量增加"
+                ],
+                correct: 2, // 正确选项索引（0开始）
+                analysis: "A：食物进入口腔后引起胃腺分泌 → 非条件反射（先天本能）<br>B：寒冷环境下皮肤血管收缩 → 非条件反射（体温调节本能）<br>C：看到酸梅时引起唾液分泌 → 条件反射（后天学习形成，“望梅止渴”）<br>D：大量饮水后尿量增加 → 非条件反射（水盐平衡调节本能）"
+            },
+            {
+                id: 2,
+                title: "血容量不足时中心静脉压往往低于多少 cmH₂O：",
+                options: ["A. 12", "B. 14", "C. 10", "D. 5"],
+                correct: 3,
+                analysis: "A：12 → CVP正常上限，提示血容量过多/右心衰竭<br>B：14 → 高于正常上限，提示血容量过多/右心功能不全<br>C：10 → CVP正常范围上限，非血容量不足临界值<br>D：5 → CVP正常范围5~12 cmH₂O，血容量不足时CVP＜5 cmH₂O"
+            },
+            {
+                id: 3,
+                title: "癌细胞最常见的转移途径是：",
+                options: [
+                    "A. 直接蔓延",
+                    "B. 血液转移",
+                    "C. 淋巴道转移",
+                    "D. 种植性转移"
+                ],
+                correct: 2,
+                analysis: "A：直接蔓延 → 肿瘤侵犯周围组织，非最常见转移方式<br>B：血液转移 → 多见于肉瘤，非上皮源性癌的最常见途径<br>C：淋巴道转移 → 上皮源性恶性肿瘤（癌）最常见转移途径<br>D：种植性转移 → 多见于腹腔肿瘤，发生率低于淋巴转移"
+            },
+            {
+                id: 4,
+                title: "新生儿心力衰竭缓解的表现是：",
+                options: [
+                    "A. 呼吸频率加快",
+                    "B. 心率加快",
+                    "C. 肝脏缩小",
+                    "D. 水肿加重"
+                ],
+                correct: 2,
+                analysis: "A：呼吸频率加快 → 心衰加重表现（肺淤血）<br>B：心率加快 → 心衰代偿表现，缓解后心率下降<br>C：肝脏缩小 → 心衰时肝淤血肿大，缓解后淤血减轻、肝脏回缩<br>D：水肿加重 → 心衰加重表现（体循环淤血）"
+            },
+            {
+                id: 5,
+                title: "当冠状动脉突然阻塞时，不易很快建立侧支循环，此时易出现：",
+                options: [
+                    "A. 心跳骤停",
+                    "B. 心律失常",
+                    "C. 心肌梗死",
+                    "D. 心前区疼痛"
+                ],
+                correct: 2,
+                analysis: "A：心跳骤停 → 可由心梗诱发，但不是直接结果<br>B：心律失常 → 心肌缺血可引发，但非阻塞后首要结局<br>C：心肌梗死 → 冠脉阻塞后心肌急性缺血坏死<br>D：心前区疼痛 → 心绞痛是短暂缺血表现，阻塞后为持续剧烈疼痛"
+            },
+            {
+                id: 6,
+                title: "肺源性心脏病最常见的原因是：",
+                options: [
+                    "A. 支气管哮喘",
+                    "B. 支气管扩张",
+                    "C. 慢性支气管炎",
+                    "D. 肺结核"
+                ],
+                correct: 2,
+                analysis: "A：支气管哮喘 → 可引发，但非最常见病因<br>B：支气管扩张 → 可引发，发病率低于慢性支气管炎<br>C：慢性支气管炎 → 是COPD最常见病因，长期COPD致肺动脉高压，是肺心病最常见诱因<br>D：肺结核 → 晚期可引发，占比远低于慢性支气管炎"
+            },
+            {
+                id: 7,
+                title: "风湿病主要是与下列哪种细菌感染的变态反应性疾病：",
+                options: [
+                    "A. 葡萄球菌",
+                    "B. 溶血性链球菌",
+                    "C. 分枝杆菌",
+                    "D. 淋球菌"
+                ],
+                correct: 1,
+                analysis: "A：葡萄球菌 → 引发化脓性炎症，与风湿病无关<br>B：溶血性链球菌 → A组β型溶血性链球菌感染后诱发自身免疫反应，是风湿病致病菌<br>C：分枝杆菌 → 引发结核病，与风湿病无关<br>D：淋球菌 → 引发淋病，与风湿病无关"
+            },
+            {
+                id: 8,
+                title: "风湿性心内膜炎最常累及的心瓣膜是：",
+                options: ["A. 二尖瓣", "B. 三尖瓣", "C. 主动脉瓣", "D. 肺动脉瓣"],
+                correct: 0,
+                analysis: "A：二尖瓣 → 最常受累（承受压力最大）<br>B：三尖瓣 → 受累概率远低于二尖瓣<br>C：主动脉瓣 → 常与二尖瓣同时受累，次之<br>D：肺动脉瓣 → 受累最少见"
+            },
+            {
+                id: 9,
+                title: "肝硬化的特征性改变是：",
+                options: [
+                    "A. 肝细胞增生",
+                    "B. 小胆管增生",
+                    "C. 假小叶形成",
+                    "D. 纤维组织增生"
+                ],
+                correct: 2,
+                analysis: "A：肝细胞增生 → 肝硬化时肝细胞再生，非特征性改变<br>B：小胆管增生 → 肝硬化伴随病理变化，非核心特征<br>C：假小叶形成 → 肝硬化最典型、特征性病理改变，诊断金标准<br>D：纤维组织增生 → 是假小叶形成的基础，非特征性改变"
+            },
+            {
+                id: 10,
+                title: "股静脉血栓脱落常栓塞：",
+                options: ["A. 右心室", "B. 下腔静脉", "C. 右心房", "D. 肺动脉"],
+                correct: 3,
+                analysis: "A：右心室 → 血栓流经右心室，不会栓塞于此<br>B：下腔静脉 → 血栓脱落后离开下腔静脉，进入右心循环<br>C：右心房 → 血栓流经右心房，栓塞部位在肺动脉<br>D：肺动脉 → 股静脉→下腔静脉→右心房→右心室→肺动脉，造成肺栓塞"
+            },
+            {
+                id: 11,
+                title: "骨折后患骨骼肌的萎缩，下列描述正确的是：",
+                options: [
+                    "A. 营养不良性萎缩",
+                    "B. 压迫性萎缩",
+                    "C. 是废用性萎缩",
+                    "D. 生理性萎缩"
+                ],
+                correct: 2,
+                analysis: "A：营养不良性萎缩 → 因营养摄入不足或血液供应障碍导致<br>B：压迫性萎缩 → 因组织器官长期受压迫导致<br>C：是废用性萎缩 → 因肢体长期静止不动、缺乏活动刺激导致，骨折后典型表现<br>D：生理性萎缩 → 随年龄增长出现的正常萎缩"
+            },
+            {
+                id: 12,
+                title: "急性细菌性痢疾的临床表现，不包括下列哪项：",
+                options: [
+                    "A. 发热",
+                    "B. 腹痛、腹泻、里急后重",
+                    "C. 粘液脓血便",
+                    "D. 呕吐物及粪便呈米泔水样"
+                ],
+                correct: 3,
+                analysis: "A：发热 → 急性细菌性痢疾典型中毒症状<br>B：腹痛、腹泻、里急后重 → 细菌性痢疾特征性症状<br>C：粘液脓血便 → 痢疾杆菌侵袭肠黏膜导致黏膜坏死溃疡，核心表现<br>D：呕吐物及粪便呈米泔水样 → 霍乱典型表现，与细菌性痢疾无关"
+            },
+            {
+                id: 27,
+                title: "《艾滋病防治条例》规定，国家实行艾滋病的咨询、检测制度是：",
+                options: [
+                    "A. 自愿咨询，自愿检测",
+                    "B. 自愿咨询，定期检测",
+                    "C. 自愿咨询，强制检测",
+                    "D. 定期咨询，强制检测"
+                ],
+                correct: 0,
+                analysis: "A：自愿咨询，自愿检测 → 条例明确规定的VCT制度<br>B：自愿咨询，定期检测 → 无“定期检测”法定要求<br>C：自愿咨询，强制检测 → 违反条例，不强制检测<br>D：定期咨询，强制检测 → 与条例完全相悖"
+            },
+            {
+                id: 28,
+                title: "《中华人民共和国献血法》规定，我国实行：",
+                options: [
+                    "A. 有偿献血制度",
+                    "B. 义务献血制度",
+                    "C. 无偿献血制度",
+                    "D. 卖血制度"
+                ],
+                correct: 2,
+                analysis: "A：有偿献血制度 → 与法律规定相悖，我国禁止商业采血<br>B：义务献血制度 → 表述不准确，法律明确为“无偿献血”<br>C：无偿献血制度 → 《献血法》第二条明确规定，国家实行无偿献血制度<br>D：卖血制度 → 法律严厉打击非法卖血行为"
+            },
+            {
+                id: 29,
+                title: "患儿，女，3岁。因发热、畏光、流涕、咳嗽入院。体检：患儿口腔两侧出现中心灰白伴有红晕的颊黏膜斑，面部、颈部出现红色斑丘疹。可能的诊断为：",
+                options: ["A. 麻疹", "B. 风疹", "C. 疱疹", "D. 猩红热"],
+                correct: 0,
+                analysis: "A：麻疹 → 特征性Koplik斑+发热+上呼吸道症状+斑丘疹，完全符合<br>B：风疹 → 无Koplik斑，皮疹出现早、消退快<br>C：疱疹 → 以疱疹病变为主，无题干典型表现<br>D：猩红热 → 弥漫性红疹+草莓舌，无Koplik斑"
+            },
+            {
+                id: 44,
+                title: "患者，男，腹部术后第二天，患者深呼吸时疼痛发生，平时无痛感，按Prince-Henry评分法，该患者疼痛分值为：",
+                options: ["A. 0分", "B. 1分", "C. 2分", "D. 3分"],
+                correct: 2,
+                analysis: "A：0分 → 咳嗽时也无痛<br>B：1分 → 仅咳嗽时疼痛，深呼吸无痛<br>C：2分 → 深呼吸时疼痛，静息时无痛（题干描述）<br>D：3分 → 静息时轻度疼痛，可忍受"
+            },
+            {
+                id: 45,
+                title: "患者，女，因CRRT治疗需要，需行股静脉穿刺，当治疗结束后，穿刺部位若按压不当，最可能产生的并发症是：",
+                options: [
+                    "A. 休克",
+                    "B. 感染",
+                    "C. 空气栓塞",
+                    "D. 局部血肿"
+                ],
+                correct: 3,
+                analysis: "A：休克 → 多由大量出血/感染诱发，与按压不当无直接关联<br>B：感染 → 与穿刺后护理相关，非按压不当直接导致<br>C：空气栓塞 → 与管路排气不当相关，与按压无关<br>D：局部血肿 → 按压不足/位置不当，穿刺点出血形成血肿"
+            },
+            {
+                id: 50,
+                title: "对于重度宫颈糜烂，恰当的处理措施是：",
+                options: [
+                    "A. 定期随访观察",
+                    "B. 自行使用阴道栓剂治疗",
+                    "C. 宫颈锥切术",
+                    "D. 先做宫颈细胞学检查，排除宫颈癌前病变后再决定治疗方案"
+                ],
+                correct: 3,
+                analysis: "A：定期随访观察 → 仅适用于无症状、排除病变后的轻度表现，重度需先明确性质<br>B：自行使用阴道栓剂治疗 → 未明确病因前盲目用药，存在延误病情风险<br>C：宫颈锥切术 → 有创治疗，仅适用于确诊癌前病变/早期癌，重度表现不能直接行锥切<br>D：先做宫颈细胞学检查，排除宫颈癌前病变后再决定治疗方案 → 临床规范流程，先排除恶性病变再选择治疗方式"
+            },
+            {
+                id: 51,
+                title: "下列哪项是呼吸系统最常见的缺氧类型：",
+                options: [
+                    "A. 低张性缺氧",
+                    "B. 血液性缺氧",
+                    "C. 循环性缺氧",
+                    "D. 组织性缺氧"
+                ],
+                correct: 0,
+                analysis: "A：低张性缺氧 → 呼吸系统疾病致通气/换气障碍，PaO₂降低，最常见<br>B：血液性缺氧 → 由血红蛋白异常导致（如贫血），与呼吸系统无关<br>C：循环性缺氧 → 由血液循环障碍导致（如休克），属循环系统问题<br>D：组织性缺氧 → 由细胞用氧障碍导致（如氰化物中毒），罕见"
+            },
+            {
+                id: 60,
+                title: "患者，男，在加班过程中突然倒地，心搏骤停，急救人员赶到后拟行电复律术，则电极板的放置部位是：",
+                options: [
+                    "A. 胸骨左缘2-3间和心尖部",
+                    "B. 胸骨右缘2-3肋间和心尖部",
+                    "C. 胸骨左缘4-5肋间和心尖部",
+                    "D. 胸骨右缘4-5肋间和心尖部"
+                ],
+                correct: 1,
+                analysis: "A：胸骨左缘2-3间和心尖部 → 非标准位置<br>B：胸骨右缘2-3肋间和心尖部 → 标准除颤位置（心底部+心尖部）<br>C：胸骨左缘4-5肋间和心尖部 → 位置错误<br>D：胸骨右缘4-5肋间和心尖部 → 位置错误"
+            },
+            {
+                id: 62,
+                title: "患者，男，26岁，某日清晨发现小便中带血，医生为鉴别出血部位，应采取的实验室检查方式为：",
+                options: [
+                    "A. 晨尿细胞显微镜检查",
+                    "B. 尿沉渣相差显微镜检查",
+                    "C. 尿隐血试验",
+                    "D. 尿含铁血黄素试验"
+                ],
+                correct: 1,
+                analysis: "A：晨尿细胞显微镜检查 → 仅能看红细胞数量，无法鉴别来源<br>B：尿沉渣相差显微镜检查 → 观察红细胞形态：变形红细胞=肾小球源性，正常形态=非肾小球源性，是鉴别金标准<br>C：尿隐血试验 → 仅检测血红蛋白，无法判断来源<br>D：尿含铁血黄素试验 → 诊断慢性血管内溶血，与血尿部位鉴别无关"
+            },
+            {
+                id: 68,
+                title: "肠内营养的分次输注，下列说法正确的是：",
+                options: [
+                    "A. 每次量约100ml，5min内完成",
+                    "B. 每次量约200ml，10min内完成",
+                    "C. 每次量约200ml，15min内完成",
+                    "D. 每次量约300ml，3min内完成"
+                ],
+                correct: 2,
+                analysis: "A：每次量约100ml，5min内完成 → 量少、速度过快，易致胃肠不适<br>B：每次量约200ml，10min内完成 → 速度偏快，易腹胀腹泻<br>C：每次量约200ml，15min内完成 → 临床标准方案，适配胃肠道耐受<br>D：每次量约300ml，3min内完成 → 速度过快，易引发恶心呕吐"
+            },
+            {
+                id: 69,
+                title: "患者，男，62岁，食管癌晚期，该病主要转移途径及转移部位为：",
+                options: [
+                    "A. 淋巴转移，食管旁淋巴结",
+                    "B. 淋巴转移，锁骨上淋巴结",
+                    "C. 血行转移，腋窝淋巴结",
+                    "D. 血行转移，膈下淋巴结"
+                ],
+                correct: 1,
+                analysis: "A：淋巴转移，食管旁淋巴结 → 早期转移部位，非晚期主要部位<br>B：淋巴转移，锁骨上淋巴结 → 食管癌主要为淋巴转移，晚期常转移至锁骨上淋巴结（左侧多见）<br>C：血行转移，腋窝淋巴结 → 血行转移为晚期少见途径，腋窝淋巴结非常见转移部位<br>D：血行转移，膈下淋巴结 → 血行转移非主要途径，膈下淋巴结转移少见"
+            }
+        ];
+
+        // 全局变量
+        let currentIndex = 0; // 当前题目索引
+        let wrongQuestions = JSON.parse(localStorage.getItem("wrongQuestions")) || []; // 错题列表（本地存储）
+        let answeredCount = 0; // 已答题数
+        let correctCount = 0; // 答对题数
+
+        // 初始化页面
+        function init() {
+            renderQuestion(currentIndex);
+            bindEvents();
+        }
+
+        // 渲染当前题目
+        function renderQuestion(index) {
+            if (index >= questionBank.length) {
+                showResult();
+                return;
+            }
+            const question = questionBank[index];
+            const questionArea = document.getElementById("question-area");
+            questionArea.innerHTML = `
+                <div class="question-card">
+                    <div class="question-title">${question.id}. ${question.title}</div>
+                    <ul class="option-list" id="option-list-${question.id}">
+                        ${question.options.map((option, idx) => `
+                            <li class="option-item" data-index="${idx}">${option}</li>
+                        `).join("")}
+                    </ul>
+                    <div class="analysis" id="analysis-${question.id}">${question.analysis}</div>
+                    <div class="control-btn">
+                        <button class="show-analysis" data-id="${question.id}">查看解析</button>
+                        <button class="next-question">下一题</button>
+                    </div>
+                </div>
+            `;
+            // 绑定选项点击事件
+            document.querySelectorAll(`#option-list-${question.id} .option-item`).forEach(item => {
+                item.addEventListener("click", function() {
+                    const selectedIdx = parseInt(this.dataset.index);
+                    const correctIdx = question.correct;
+                    // 禁用所有选项
+                    document.querySelectorAll(`#option-list-${question.id} .option-item`).forEach(opt => {
+                        opt.style.pointerEvents = "none";
+                    });
+                    // 标记对错
+                    if (selectedIdx === correctIdx) {
+                        this.classList.add("correct");
+                        correctCount++;
+                    } else {
+                        this.classList.add("wrong");
+                        // 标记正确选项
+                        document.querySelectorAll(`#option-list-${question.id} .option-item`)[correctIdx].classList.add("correct");
+                        // 添加到错题本
+                        addToWrongList(question.id);
+                    }
+                    answeredCount++;
+                });
+            });
+        }
+
+        // 添加到错题本
+        function addToWrongList(questionId) {
+            const isAlreadyInWrong = wrongQuestions.some(q => q.id === questionId);
+            if (!isAlreadyInWrong) {
+                const question = questionBank.find(q => q.id === questionId);
+                wrongQuestions.push(question);
+                localStorage.setItem("wrongQuestions", JSON.stringify(wrongQuestions));
+            }
+        }
+
+        // 显示解析
+        function showAnalysis(questionId) {
+            const analysis = document.getElementById(`analysis-${questionId}`);
+            analysis.style.display = analysis.style.display === "block" ? "none" : "block";
+        }
+
+        // 显示结果
+        function showResult() {
+            const resultArea = document.getElementById("result-area");
+            resultArea.style.display = "block";
+            const accuracy = (correctCount / answeredCount * 100).toFixed(2);
+            resultArea.innerHTML = `
+                <p>答题完成！共${questionBank.length}题，已答${answeredCount}题，答对${correctCount}题</p>
+                <p>正确率：${accuracy}%</p>
+                <p>错题数：${wrongQuestions.length}题（可点击“查看错题本”复习）</p>
+                <button onclick="resetQuiz()" style="margin-top:10px;padding:8px 15px;background:#409eff;color:white;border:none;border-radius:5px;cursor:pointer;">重新答题</button>
+            `;
+        }
+
+        // 渲染错题本
+        function renderWrongList() {
+            const wrongListArea = document.getElementById("wrong-list-area");
+            const wrongQuestionsEl = document.getElementById("wrong-questions");
+            wrongListArea.style.display = "block";
+            if (wrongQuestions.length === 0) {
+                wrongQuestionsEl.innerHTML = "<p>暂无错题</p>";
+                return;
+            }
+            wrongQuestionsEl.innerHTML = wrongQuestions.map(question => `
+                <div class="question-card">
+                    <div class="question-title">${question.id}. ${question.title}</div>
+                    <ul class="option-list">
+                        ${question.options.map((option, idx) => `
+                            <li class="option-item ${idx === question.correct ? 'correct' : ''}">${option}</li>
+                        `).join("")}
+                    </ul>
+                    <div class="analysis" style="display:block">${question.analysis}</div>
+                </div>
+            `).join("");
+        }
+
+        // 重置答题
+        function resetQuiz() {
+            currentIndex = 0;
+            answeredCount = 0;
+            correctCount = 0;
+            document.getElementById("result-area").style.display = "none";
+            renderQuestion(currentIndex);
+        }
+
+        // 绑定事件
+        function bindEvents() {
+            // 查看解析按钮
+            document.addEventListener("click", function(e) {
+                if (e.target.classList.contains("show-analysis")) {
+                    const questionId = e.target.dataset.id;
+                    showAnalysis(questionId);
+                }
+            });
+
+            // 下一题按钮
+            document.addEventListener("click", function(e) {
+                if (e.target.classList.contains("next-question")) {
+                    currentIndex++;
+                    renderQuestion(currentIndex);
+                }
+            });
+
+            // 查看错题本
+            document.getElementById("show-wrong-btn").addEventListener("click", function() {
+                renderWrongList();
+            });
+
+            // 清空错题
+            document.getElementById("reset-wrong-btn").addEventListener("click", function() {
+                if (confirm("确定清空错题本吗？")) {
+                    wrongQuestions = [];
+                    localStorage.removeItem("wrongQuestions");
+                    renderWrongList();
+                }
+            });
+        }
+
+        // 页面加载完成后初始化
+        window.onload = init;
+    </script>
+</body>
+</html>
